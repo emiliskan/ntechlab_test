@@ -10,6 +10,7 @@ uvicorn = "*"
 orjson = "*"
 psycopg2 = "*"
 alembic = "*"
+asyncpg = "*"
 
 [dev-packages]
 

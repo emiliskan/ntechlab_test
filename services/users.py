@@ -4,6 +4,7 @@ from typing import List
 
 from fastapi import Depends
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from db.database import get_db
 from db.models.users import UserDatabase
@@ -11,6 +12,10 @@ from schemas.user import User
 
 
 class UserExists(Exception):
+    ...
+
+
+class UserNotFound(Exception):
     ...
 
 
@@ -24,21 +29,31 @@ class UsersService:
         self.db.add(db_user)
 
         try:
-            self.db.commit()
-            self.db.refresh(db_user)
-        except Exception as e:
+            await self.db.commit()
+        except IntegrityError:
             raise UserExists
-
         return db_user
 
     async def get_user(self, user_id: int) -> UserDatabase:
-        return self.db.query(UserDatabase).get(user_id)
+        users = await self.db.execute(
+            select(
+                UserDatabase
+            ).where(
+                UserDatabase.id == user_id
+            )
+        )
+        user = users.scalar()
+        if not user:
+            raise UserNotFound
+
+        return user
 
     async def save_user_location(self, user: User) -> UserDatabase:
         db_user = await self.get_user(user.id)
         db_user.x = user.x
         db_user.y = user.y
-        self.db.commit()
+        await self.db.flush()
+
         return db_user
 
     async def get_users_near(self, user_id: int, radius: float, count: int) -> List[UserDatabase]:
@@ -52,7 +67,7 @@ class UsersService:
         y_max = user_y + radius
 
         # get near users
-        near_users = self.db.execute(
+        near_users = await self.db.execute(
             select(
                 UserDatabase.id,
                 UserDatabase.x,
@@ -62,7 +77,8 @@ class UsersService:
                 UserDatabase.x > x_min, UserDatabase.y >= y_min,
                 UserDatabase.x <= x_max, UserDatabase.y <= y_max
             )
-        ).all()
+        )
+        near_users = near_users.all()
 
         # calculate and sort by distance
         near_users = sorted(

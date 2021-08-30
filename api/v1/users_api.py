@@ -3,7 +3,7 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from services.users import UsersService, get_users_service, UserExists
+from services.users import UsersService, get_users_service, UserExists, UserNotFound
 from schemas.user import User
 
 router = APIRouter()
@@ -16,19 +16,20 @@ async def new_user(
         user_service: UsersService = Depends(get_users_service)
 ) -> User:
     try:
-        created_user = await user_service.new_user(user_data)
+        return await user_service.new_user(user_data)
     except UserExists:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User already exists.")
 
-    return created_user
 
-
-@router.put("/location", summary="Сохранение местоположения юзера.", response_model=User)
+@router.put("/", summary="Сохранение юзера.", response_model=User)
 async def save_user_location(
         user: User,
         user_service: UsersService = Depends(get_users_service),
 ) -> User:
-    return await user_service.save_user_location(user)
+    try:
+        return await user_service.save_user_location(user)
+    except UserNotFound:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
 
 
 @router.get("/location/near", summary="Получение пользователей рядом.", response_model=List[User])
