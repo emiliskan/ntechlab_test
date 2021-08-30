@@ -6,7 +6,7 @@ x-env: &x-env
 
 services:
   db:
-    container_name: varys-db
+    container_name: varys-db-test
     image: postgres
     ports:
       - 15436:5432
