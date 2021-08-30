@@ -28,6 +28,12 @@ def event_loop():
     return asyncio.get_event_loop()
 
 
+@pytest.fixture(autouse=True, scope="session")
+async def init_data(postgres_client):
+    # TODO: init data
+    pass
+
+
 @pytest.fixture
 def make_get_request(session):
     async def inner(method: str, params: dict = None, headers: dict = None) -> HTTPResponse:
@@ -47,6 +53,20 @@ def make_post_request(session):
     async def inner(url: str, data: dict = None, headers: dict = None) -> HTTPResponse:
         url = f"http://{url}"
         async with session.post(url, json=data, headers=headers) as response:
+            return HTTPResponse(
+                body=await response.json(),
+                headers=response.headers,
+                status=response.status,
+            )
+
+    return inner
+
+
+@pytest.fixture
+def make_put_request(session):
+    async def inner(url: str, data: dict = None, headers: dict = None) -> HTTPResponse:
+        url = f"http://{url}"
+        async with session.put(url, json=data, headers=headers) as response:
             return HTTPResponse(
                 body=await response.json(),
                 headers=response.headers,
