@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from db.database import get_db
 from db.models.users import UserDatabase
 from schemas.user import User
+from utils.distance import calc_distance
 
 
 class UserExists(Exception):
@@ -58,7 +59,8 @@ class UsersService:
 
     async def get_users_near(self, user_id: int, radius: float, count: int) -> List[UserDatabase]:
         db_user: UserDatabase = await self.get_user(user_id)
-        user_x, user_y = db_user.x, db_user.y
+        user_x = db_user.x
+        user_y = db_user.y
 
         x_min = max(user_x - radius, 0)
         y_min = max(user_y - radius, 0)
@@ -67,8 +69,11 @@ class UsersService:
         y_max = user_y + radius
 
         # get near users
+        distance = calc_distance(user_x, UserDatabase.x, user_y, UserDatabase.y)
+
         near_users = await self.db.execute(
             select(
+                distance,
                 UserDatabase.id,
                 UserDatabase.x,
                 UserDatabase.y,
@@ -76,15 +81,15 @@ class UsersService:
             ).where(
                 UserDatabase.x > x_min, UserDatabase.y >= y_min,
                 UserDatabase.x <= x_max, UserDatabase.y <= y_max
-            )
+            ).order_by(distance)
         )
         near_users = near_users.all()
 
         # calculate and sort by distance
-        near_users = sorted(
-            near_users,
-            key=lambda u: sqrt((user_x - u.x) ** 2 + (user_y - u.y) ** 2)
-        )
+        near_users = list(filter(
+            lambda u: u[0] <= radius,
+            near_users
+        ))
 
         return near_users[:count]
 
