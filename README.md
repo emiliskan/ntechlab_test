@@ -26,7 +26,7 @@ docker exec -it ntech-api bash
 
 Перейдите в папку миграций и запустите их
 ```
-cd db/migrations
+cd db/
 alembic upgrade head
 ```
 
